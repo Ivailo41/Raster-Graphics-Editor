@@ -2,38 +2,54 @@
 #include "Core/IWindow.h"
 #include "Core/IRenderer.h"
 #include "Core/ITexture.h"
+#include "Core/IPlatform.h"
 
 #include "Platforms/SDL/SDLWindow.h"
 #include "Platforms/SDL/SDLRenderer.h"
 #include "Platforms/SDL/SDLTexture.h"
+#include "Platforms/SDL/SDLPlatform.h"
 
 int main()
 {
-	const int PIXEL_WIDTH = 20;
-	const int PIXEL_HEIGHT = 20;
+	const int PIXEL_WIDTH = 100;
+	const int PIXEL_HEIGHT = 100;
+
+	const int WINDOW_WIDTH = 800;
+	const int WINDOW_HEIGHT = 600;
+
+	IPlatform* platform = new SDLPlatform();
 
 	// Later make check if SDL is used and then initialize it
-	if (!SDL_Init(SDL_INIT_VIDEO)) {
-		SDL_LogCritical(SDL_LOG_CATEGORY_APPLICATION, "SDL_Init Error: %s", SDL_GetError());
+	if (!platform || !platform->Init()) {
+		std::cerr << "Failed to initialize platform." << std::endl;
+		return -1;
 	}
 
-	// Later create the window based on the chosen platform
-	std::unique_ptr<IWindow> window = std::make_unique<SDLWindow>();
-	if (!window->Init(800, 600, "SDL Window")) {
-		//Make use of other logging in case SDL is not used
-		SDL_LogCritical(SDL_LOG_CATEGORY_APPLICATION, "Window Init Error");
-		return 1;
+	std::unique_ptr<IWindow> window;
+	std::unique_ptr<IRenderer> renderer;
+
+	try {
+		window = platform->CreateWindow(WINDOW_WIDTH, WINDOW_HEIGHT, "Raster Graphics Editor");
+
+	} 
+	catch (const std::exception& e) {
+		std::cerr << "Failed to create window: " << e.what() << std::endl;
+		return -1;
+	}
+	
+	try {
+		renderer = platform->CreateRenderer(window.get());
+	} 
+	catch (const std::exception& e) {
+		std::cerr << "Failed to create renderer: " << e.what() << std::endl;
+		return -1;
 	}
 
-	std::unique_ptr<IRenderer> renderer = std::make_unique<SDLRenderer>();
-	if (!renderer->Init(window->GetNativeWindow())) {
-		SDL_LogCritical(SDL_LOG_CATEGORY_RENDER, "Renderer Init Error");
-		return 1;
-	}
+	InputSystem inputSystem;
 
 	std::unique_ptr<ITexture> texture = renderer->CreateTexture(PIXEL_WIDTH, PIXEL_HEIGHT, TextureScaleMode::NEAREST);
 
-	Uint32 pixels[PIXEL_WIDTH * PIXEL_HEIGHT];
+	Uint32* pixels = new Uint32[PIXEL_WIDTH * PIXEL_HEIGHT];
 
 	// Fill pixel array with a gradient
 	for (int y = 0; y < PIXEL_HEIGHT; ++y) {
@@ -47,22 +63,29 @@ int main()
 
 	texture->UpdateTexture(pixels, PIXEL_WIDTH * sizeof(Uint32));
 
-	bool isRunning = true;
+	// Main loop
+	while (!platform->shouldClose()) {
 
-	while (isRunning) {
+		platform->PollEvents(inputSystem);
 
 		SDL_Event event;
 		
-		while (SDL_PollEvent(&event)) {
-			if (event.type == SDL_EVENT_QUIT) {
-				isRunning = false;
-			}
+		if(inputSystem.IsMouseButtonDown(MouseButton::LEFT)) {
+			float mouseX;
+			float mouseY;
+			window->GetMousePosition(&mouseX, &mouseY);
 
-			if (event.type == SDL_EVENT_MOUSE_BUTTON_DOWN) {
-				int mouseX = event.button.x;
-				int mouseY = event.button.y;
-				SDL_Log("Mouse Clicked at: (%d, %d)", mouseX, mouseY);
-			}
+			int windowWidth, windowHeight;
+			window->GetSize(&windowWidth, &windowHeight);
+
+			double pixelWidth = (double)windowWidth / PIXEL_WIDTH;
+			double pixelHeight = (double)windowHeight / PIXEL_HEIGHT;
+
+			unsigned horizontalTileIndex = mouseX / pixelWidth;
+			unsigned verticalTileIndex = mouseY / pixelHeight;
+			// Change the color of the pixel to white on mouse down
+			pixels[verticalTileIndex * PIXEL_WIDTH + horizontalTileIndex] = 0xFFFFFFFF;
+			texture->UpdateTexture(pixels, PIXEL_WIDTH * sizeof(Uint32));
 		}
 
 		renderer->Clear();
@@ -71,7 +94,7 @@ int main()
 
 		renderer->DrawFrame();
 	}
-	renderer->Shutdown();
-	window->Shutdown();
-	SDL_QuitSubSystem(SDL_INIT_VIDEO);
+
+	delete[] pixels;
+	platform->Shutdown();
 }

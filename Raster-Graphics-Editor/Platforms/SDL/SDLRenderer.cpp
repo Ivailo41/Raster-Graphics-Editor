@@ -1,15 +1,30 @@
 #include "SDLRenderer.h"
 
-bool SDLRenderer::Init(void* nativeWindow)
+//bool SDLRenderer::Init(void* nativeWindow)
+//{
+//	m_Renderer = SDL_CreateRenderer(static_cast<SDL_Window*>(nativeWindow), NULL);
+//	if (!m_Renderer) {
+//		return false;
+//	}
+//	return true;
+//}
+//
+//void SDLRenderer::Shutdown()
+//{
+//	if (m_Renderer) {
+//		SDL_DestroyRenderer(m_Renderer);
+//	}
+//}
+
+SDLRenderer::SDLRenderer(SDL_Window* nativeWindow)
 {
 	m_Renderer = SDL_CreateRenderer(static_cast<SDL_Window*>(nativeWindow), NULL);
 	if (!m_Renderer) {
-		return false;
+		throw std::runtime_error("Failed to create SDL Renderer");
 	}
-	return true;
 }
 
-void SDLRenderer::Shutdown()
+SDLRenderer::~SDLRenderer()
 {
 	if (m_Renderer) {
 		SDL_DestroyRenderer(m_Renderer);

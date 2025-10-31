@@ -5,11 +5,11 @@ class IWindow {
 
 public:
 	virtual ~IWindow() = default;
-	
-	virtual bool Init(unsigned width, unsigned height, const char* title) = 0;
-	virtual void Shutdown() = 0;
 
 	virtual void PollEvents() = 0;
 
 	virtual void* GetNativeWindow() const = 0;
+
+	virtual void GetSize(int* width, int* height) const = 0;
+	virtual void GetMousePosition(float* mouseX, float* mouseY) const = 0;
 };

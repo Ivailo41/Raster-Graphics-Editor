@@ -7,8 +7,8 @@ class IRenderer {
 public:
 	virtual ~IRenderer() = default;
 
-	virtual bool Init(void* nativeWindow) = 0;
-	virtual void Shutdown() = 0;
+	//virtual bool Init(void* nativeWindow) = 0;
+	//virtual void Shutdown() = 0;
 
 	virtual void Clear() = 0;
 	virtual void DrawFrame() = 0;

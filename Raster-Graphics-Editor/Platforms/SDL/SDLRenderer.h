@@ -3,14 +3,16 @@
 #include <SDL3/SDL.h>
 #include "SDLTexture.h"
 #include "../../Core/IRenderer.h"
+#include <stdexcept>
 
 class SDLRenderer : public IRenderer {
 
 public:
-	virtual ~SDLRenderer() = default;
+	SDLRenderer(SDL_Window* nativeWindow);
+	virtual ~SDLRenderer() override;
 
-	virtual bool Init(void* nativeWindow) override;
-	virtual void Shutdown() override;
+	//virtual bool Init(void* nativeWindow) override;
+	//virtual void Shutdown() override;
 
 	virtual void Clear() override;
 	virtual void DrawFrame() override;
