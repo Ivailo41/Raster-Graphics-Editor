@@ -16,7 +16,7 @@
 //	}
 //}
 
-SDLRenderer::SDLRenderer(SDL_Window* nativeWindow)
+SDLRenderer::SDLRenderer(SDL_Window* nativeWindow) : m_Texture(nullptr)
 {
 	m_Renderer = SDL_CreateRenderer(static_cast<SDL_Window*>(nativeWindow), NULL);
 	if (!m_Renderer) {
@@ -37,14 +37,12 @@ void SDLRenderer::Clear()
 	SDL_RenderClear(m_Renderer);
 }
 
-void SDLRenderer::DrawFrame()
+void SDLRenderer::DrawFrame(const IFrameBuffer& framebuffer)
 {
+	ensureTextureCreated(framebuffer.GetWidth(), framebuffer.GetHeight());
+	SDL_UpdateTexture(m_Texture, NULL, framebuffer.GetPixels(), framebuffer.GetWidth() * sizeof(uint32_t));
+	SDL_RenderTexture(m_Renderer, m_Texture, NULL, NULL);
 	SDL_RenderPresent(m_Renderer);
-}
-
-void SDLRenderer::RenderTexture(const ITexture& texture)
-{
-	SDL_RenderTexture(m_Renderer, static_cast<SDL_Texture*>(texture.GetNativeTexture()), NULL, NULL);
 }
 
 std::unique_ptr<ITexture> SDLRenderer::CreateTexture(int width, int height, TextureScaleMode textureMode)
@@ -56,4 +54,17 @@ std::unique_ptr<ITexture> SDLRenderer::CreateTexture(int width, int height, Text
 	SDL_SetTextureScaleMode(sdlTexture, (SDL_ScaleMode)textureMode);
 
 	return std::make_unique<SDLTexture>(sdlTexture);
+}
+
+void SDLRenderer::ensureTextureCreated(int width, int heigth)
+{
+	if (m_Texture) {
+		if(m_Texture->w == width && m_Texture->h == heigth) {
+			return;
+		}
+	}
+
+	delete m_Texture;
+	m_Texture = SDL_CreateTexture(m_Renderer, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_STREAMING, width, heigth);
+	SDL_SetTextureScaleMode(m_Texture, SDL_SCALEMODE_NEAREST);
 }

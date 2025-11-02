@@ -9,3 +9,13 @@ void* SDLTexture::GetNativeTexture() const
 {
 	return m_Texture;
 }
+
+int SDLTexture::GetWidth() const
+{
+	return m_Texture ? m_Texture->w : 0;
+}
+
+int SDLTexture::GetHeight() const
+{
+	return m_Texture ? m_Texture->h : 0;
+}

@@ -15,11 +15,14 @@ public:
 	//virtual void Shutdown() override;
 
 	virtual void Clear() override;
-	virtual void DrawFrame() override;
+	virtual void DrawFrame(const IFrameBuffer& framebuffer) override;
 
-	virtual void RenderTexture(const ITexture& texture) override;
 	virtual std::unique_ptr<ITexture> CreateTexture(int width, int height, TextureScaleMode textureMode) override;
 
 private:
+	void ensureTextureCreated(int width, int heigth);
+
+private:
 	SDL_Renderer* m_Renderer;
+	SDL_Texture* m_Texture;
 };

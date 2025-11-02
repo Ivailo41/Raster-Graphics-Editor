@@ -10,6 +10,9 @@ public:
 	virtual void UpdateTexture(const void* pixels, int pitch) override;
 	virtual void* GetNativeTexture() const override;
 
+	virtual int GetWidth() const override;
+	virtual int GetHeight() const override;
+
 private:
 	SDL_Texture* m_Texture;
 };

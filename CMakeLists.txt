@@ -9,5 +9,5 @@ endif()
 project ("Raster-Graphics-Editor")
 
 # Include sub-projects.
-add_subdirectory ("Raster-Graphics-Editor")
+add_subdirectory ("src")
 add_subdirectory ("vendor")

@@ -1,6 +1,7 @@
 #pragma once
 #include "ITexture.h"
 #include <memory>
+#include "IFrameBuffer.h"
 
 class IRenderer {
 
@@ -11,8 +12,7 @@ public:
 	//virtual void Shutdown() = 0;
 
 	virtual void Clear() = 0;
-	virtual void DrawFrame() = 0;
+	virtual void DrawFrame(const IFrameBuffer& framebuffer) = 0;
 
-	virtual void RenderTexture(const ITexture& texture) = 0;
 	virtual std::unique_ptr<ITexture> CreateTexture(int width, int height, TextureScaleMode textureMode) = 0;
 };
