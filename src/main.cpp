@@ -8,29 +8,41 @@
 #include "Platforms/SDL/SDLRenderer.h"
 #include "Platforms/SDL/SDLTexture.h"
 #include "Platforms/SDL/SDLPlatform.h"
+#include "Platforms/SDL/SDLImGuiLayer.h"
+
+#include "UI/UIManager.h"
 
 #include "Graphics/Shapes/Line.h"
 
 #include <vector>
 
-//can be moved to window class
-void getClickedPixel(IWindow* window, int pixelWidth, int pixelHeight, unsigned& outX, unsigned& outY) {
+#include "imgui.h"
+#include "imgui_impl_sdl3.h"
+#include "imgui_impl_sdlrenderer3.h"
+
+#include <chrono>
+#include <random>
+#include <math.h>
+using namespace std::chrono;
+
+void getClickedPixel(ImVec2 canvasSize, ImVec2 canvasOffset, IWindow* window, int pixelWidth, int pixelHeight, unsigned& outX, unsigned& outY) {
 
 	float mouseX;
 	float mouseY;
 	window->GetMousePosition(&mouseX, &mouseY);
 	int windowWidth, windowHeight;
 	window->GetSize(&windowWidth, &windowHeight);
-	double pixelW = (double)windowWidth / pixelWidth;
-	double pixelH = (double)windowHeight / pixelHeight;
-	outX = mouseX / pixelW;
-	outY = mouseY / pixelH;
+	double pixelW = (double)canvasSize.x / pixelWidth;
+	double pixelH = (double)canvasSize.y / pixelHeight;
+	outX = (mouseX - canvasOffset.x) / pixelW;
+	outY = (mouseY - canvasOffset.y) / pixelH;
 }
 
 int main() {
 
-	const int PIXEL_WIDTH = 120;
-	const int PIXEL_HEIGHT = 120;
+	int PIXEL_WIDTH = 120;
+	int PIXEL_HEIGHT = 120;
+	int res[2] = { PIXEL_WIDTH, PIXEL_HEIGHT };
 
 	const int WINDOW_WIDTH = 800;
 	const int WINDOW_HEIGHT = 600;
@@ -63,6 +75,11 @@ int main() {
 		return -1;
 	}
 
+	std::unique_ptr<IUIPlatformLayer> uiLayer = std::make_unique<SDLImGuiLayer>();
+	UIManager uiManager;
+
+	uiLayer->Init(window->GetNativeWindow(), renderer->GetNativeRenderer());
+
 	InputSystem inputSystem;
 
 	FrameBuffer frameBuffer(PIXEL_WIDTH, PIXEL_HEIGHT);
@@ -71,32 +88,49 @@ int main() {
 	std::vector<Shape*> shapes;
 	shapes.reserve(100);
 
-	//Demonstration of differ in both algorithms
-	shapes.push_back(new Line(10, 20, 110, 70, true, 0x0000FFFF));
-	shapes.push_back(new Line(10, 20, 110, 70, false, 0xFF0000FF));
-
-	//Demonstration of differ in both algorithms
-	shapes.push_back(new Line(32, 10, 62, 110, true, 0x00FF00FF));
-	shapes.push_back(new Line(30, 10, 60, 110, false, 0xFFFF00FF));
-
 	//temporary variable to check on mouse up event
 	bool mouseDown = false;
 
 	//temporary variables to store the preview line start and end points
 	unsigned int x0, x1, y0, y1;
 
+	float progress = 1.0f;
+	unsigned line1Start[2] = { 10, 20 };
+	unsigned line1End[2] = { 110, 70 };
+
+	unsigned line2Start[2] = { 10, 20 };
+	unsigned line2End[2] = { 110, 70 };
+
+	long long stressTestResult = 0;
+
+	SDL_Texture* myTexture;
+	
+	ImVec2 canvasSize, canvasOffset;
+
 	// Main loop
 	while (!platform->shouldClose()) {
 
-		platform->PollEvents(inputSystem);
+		myTexture = static_cast<SDL_Texture*>(renderer->getTextureHandle());
+		int winW, winH;
+		window->GetSize(&winW, &winH);
+
+		SDL_Event event;
+		while (platform->PollEvent(&event)) {
+			platform->ProcessEvent(&event, inputSystem);
+			uiLayer->ProcessEvent(&event);
+		}
 
 		frameBuffer.Clear(0xFF000000); // Clear to black
 		renderer->Clear();
 		
-		if(inputSystem.IsMouseButtonDown(MouseButton::LEFT)) {
+		rasterizer->DrawLineBresenham(line1Start[0], line1Start[1], line1End[0], line1End[1], 0x0000FFFF, progress);
+		rasterizer->DrawLineSimple(line1Start[0], line1Start[1], line1End[0], line1End[1], 0xFF0000FF, progress);
+
+		if(inputSystem.IsMouseButtonDown(MouseButton::RIGHT)) {
+
 
 			if (!mouseDown) {
-				getClickedPixel(window.get(), PIXEL_WIDTH, PIXEL_HEIGHT, x0, y0);
+				getClickedPixel(canvasSize, canvasOffset, window.get(), PIXEL_WIDTH, PIXEL_HEIGHT, x0, y0);
 			}
 
 			mouseDown = true;
@@ -104,14 +138,14 @@ int main() {
 			unsigned horizontalTileIndex;
 			unsigned verticalTileIndex;
 
-			getClickedPixel(window.get(), PIXEL_WIDTH, PIXEL_HEIGHT, horizontalTileIndex, verticalTileIndex);
+			getClickedPixel(canvasSize, canvasOffset, window.get(), PIXEL_WIDTH, PIXEL_HEIGHT, horizontalTileIndex, verticalTileIndex);
 
-			rasterizer->DrawLineBresenham(x0, y0, horizontalTileIndex, verticalTileIndex, 0xFFFFFFFF);
+			rasterizer->DrawLineBresenham(x0, y0, horizontalTileIndex, verticalTileIndex, 0xFFFFFFFF, 1.0);
 		}
 
-		if (mouseDown && !inputSystem.IsMouseButtonDown(MouseButton::LEFT)) {
+		if (mouseDown && !inputSystem.IsMouseButtonDown(MouseButton::RIGHT)) {
 
-			getClickedPixel(window.get(), PIXEL_WIDTH, PIXEL_HEIGHT, x1, y1);
+			getClickedPixel(canvasSize, canvasOffset, window.get(), PIXEL_WIDTH, PIXEL_HEIGHT, x1, y1);
 
 			shapes.push_back(new Line(x0, y0, x1, y1, true, 0xFFFFFFFF));
 
@@ -127,7 +161,60 @@ int main() {
 			shape->Draw(rasterizer);
 		}
 
+		uiLayer->BeginFrame();
+		uiManager.RenderUI(progress);
+		ImGui::Begin("Hello, world!");
+
+		ImGui::SliderInt2("Resolution", res, 10, 1920);
+		if (ImGui::Button("Change Resolution")) {
+			PIXEL_WIDTH = res[0];
+			PIXEL_HEIGHT = res[1];
+			frameBuffer.SetSize(PIXEL_WIDTH, PIXEL_HEIGHT);
+		}
+		ImGui::SliderFloat("Progress", &progress, 0.0f, 1.0f);
+		ImGui::SliderInt2("Line1 Start", (int*)line1Start, 0, PIXEL_WIDTH);
+		ImGui::SliderInt2("Line1 End", (int*)line1End, 0, PIXEL_WIDTH);
+		ImGui::SliderInt2("Line2 Start", (int*)line2Start, 0, PIXEL_WIDTH);
+		ImGui::SliderInt2("Line2 End", (int*)line2End, 0, PIXEL_WIDTH);
+		if (ImGui::Button("Test 100k lines draw")) {
+
+			std::random_device rd; // obtain a random number from hardware
+			std::mt19937 gen(rd()); // seed the generator
+			std::uniform_int_distribution<> distr(0, std::max(PIXEL_WIDTH, PIXEL_HEIGHT)); // define the range
+
+			auto start = high_resolution_clock::now();
+			for (size_t i = 0; i < 100000; i++)
+			{
+				rasterizer->DrawLineBresenham(distr(gen), distr(gen), distr(gen), distr(gen), 0xFFFFFFFF, 1.0);
+			}
+			auto stop = high_resolution_clock::now();
+			auto duration = duration_cast<milliseconds>(stop - start);
+			stressTestResult = duration.count();
+		}
+		ImGui::Text("Calculation 100k Lines duration: %i ms", stressTestResult);
+		ImGui::End();
+
+		ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0, 0));
+		ImGui::Begin("Texture Preview", nullptr, ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse);
+
+		canvasOffset = ImGui::GetWindowPos();
+		canvasSize = ImGui::GetWindowSize();
+
+		ImVec2 contentRegion = ImGui::GetContentRegionAvail();
+		// Convert SDL_Texture* to ImTextureID
+		ImTextureID texID = (ImTextureID)myTexture;
+
+		// Specify UVs from top-left (0,0) to bottom-right (1,1)
+		ImVec2 texSize((float)winW, (float)winH);
+		ImGui::Image(texID, contentRegion, ImVec2(0, 0), ImVec2(1, 1));
+
+		ImGui::End();
+		ImGui::PopStyleVar();
+
+		uiLayer->EndFrame();
 		renderer->DrawFrame(frameBuffer);
+
 	}
+
 	platform->Shutdown();
 }

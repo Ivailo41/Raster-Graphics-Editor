@@ -7,14 +7,19 @@ void CPURasterizer::AttachFrameBuffer(IFrameBuffer* frameBuffer)
 	m_FrameBuffer = frameBuffer;
 }
 
-void CPURasterizer::DrawLineBresenham(int x0, int y0, int x1, int y1, uint32_t color)
+void CPURasterizer::DrawLineBresenham(int x0, int y0, int x1, int y1, uint32_t color, float progress)
 {
 	int dx = abs(x1 - x0);
 	int dy = abs(y1 - y0);
 	int sx = (x0 < x1) ? 1 : -1;
 	int sy = (y0 < y1) ? 1 : -1;
 	int err = dx - dy;
-	while (true) {
+
+    int totalSteps = (dx > dy ? dx : dy) + 1;
+    int visibleSteps = (int)(totalSteps * progress);
+    if (visibleSteps < 1) return;
+
+    for (int i = 0; i < visibleSteps; i++) {
 		m_FrameBuffer->SetPixel(x0, y0, color);
 		if (x0 == x1 && y0 == y1) break;
 		int err2 = err * 2;
@@ -29,7 +34,7 @@ void CPURasterizer::DrawLineBresenham(int x0, int y0, int x1, int y1, uint32_t c
 	}
 }
 
-void CPURasterizer::DrawLineSimple(int x0, int x1, int y0, int y1, uint32_t color)
+void CPURasterizer::DrawLineSimple(int x0, int x1, int y0, int y1, uint32_t color, float progress)
 {
     int dx = abs(y0 - x0);
     int dy = abs(y1 - x1);
@@ -48,7 +53,9 @@ void CPURasterizer::DrawLineSimple(int x0, int x1, int y0, int y1, uint32_t colo
     int x = x0;
     int n = dx + 1;
 
-    while (n--) {
+    int visibleSteps = (int)(n * progress);
+
+    while (visibleSteps--) {
         int inty = static_cast<int>(y + 0.5f);
         if (reverse) {
             m_FrameBuffer->SetPixel(inty, x, color);

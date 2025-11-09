@@ -10,7 +10,8 @@ public:
 
 	virtual bool Init() = 0;
 	virtual void Shutdown() = 0;
-	virtual void PollEvents(InputSystem& inputSystem) = 0;
+	virtual bool PollEvent(void* event) const = 0;
+	virtual void ProcessEvent(void* event, InputSystem& inputSystem) = 0;
 
 	virtual bool shouldClose() = 0;
 

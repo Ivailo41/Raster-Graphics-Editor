@@ -14,27 +14,30 @@ void SDLPlatform::Shutdown()
 	SDL_QuitSubSystem(SDL_INIT_VIDEO);
 }
 
-void SDLPlatform::PollEvents(InputSystem& inputSystem)
+bool SDLPlatform::PollEvent(void* event) const
 {
-	SDL_Event event;
-	while (SDL_PollEvent(&event)) {
-		switch (event.type) {
-			case SDL_EVENT_QUIT:
-				m_ShouldClose = true;
-				break;
-			case SDL_EVENT_KEY_DOWN:
-				inputSystem.SetKeyDown(TranslateKey(event.key.scancode));
-				break;
-			case SDL_EVENT_KEY_UP:
-				inputSystem.SetKeyUp(TranslateKey(event.key.scancode));
-				break;
-			case SDL_EVENT_MOUSE_BUTTON_DOWN:
-				inputSystem.SetMouseButtonDown(TranslateMouseButton(event.button.button));
-				break;
-			case SDL_EVENT_MOUSE_BUTTON_UP:
-				inputSystem.SetMouseButtonUp(TranslateMouseButton(event.button.button));
-				break;
-		}
+	return SDL_PollEvent(static_cast<SDL_Event*>(event));
+}
+
+void SDLPlatform::ProcessEvent(void* event, InputSystem& inputSystem)
+{
+	SDL_Event* sdlEvent = static_cast<SDL_Event*>(event);
+	switch (sdlEvent->type) {
+	case SDL_EVENT_QUIT:
+		m_ShouldClose = true;
+		break;
+	case SDL_EVENT_KEY_DOWN:
+		inputSystem.SetKeyDown(TranslateKey(sdlEvent->key.scancode));
+		break;
+	case SDL_EVENT_KEY_UP:
+		inputSystem.SetKeyUp(TranslateKey(sdlEvent->key.scancode));
+		break;
+	case SDL_EVENT_MOUSE_BUTTON_DOWN:
+		inputSystem.SetMouseButtonDown(TranslateMouseButton(sdlEvent->button.button));
+		break;
+	case SDL_EVENT_MOUSE_BUTTON_UP:
+		inputSystem.SetMouseButtonUp(TranslateMouseButton(sdlEvent->button.button));
+		break;
 	}
 }
 

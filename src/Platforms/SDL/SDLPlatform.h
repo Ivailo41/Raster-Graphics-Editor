@@ -10,7 +10,8 @@ public:
 
 	virtual bool Init() override;
 	virtual void Shutdown() override;
-	virtual void PollEvents(InputSystem& inputSystem) override;
+	virtual bool PollEvent(void* event) const override;
+	virtual void ProcessEvent(void* event, InputSystem& inputSystem) override;
 
 	virtual bool shouldClose() override;
 

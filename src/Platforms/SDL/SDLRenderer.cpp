@@ -1,24 +1,17 @@
 #include "SDLRenderer.h"
 
-//bool SDLRenderer::Init(void* nativeWindow)
-//{
-//	m_Renderer = SDL_CreateRenderer(static_cast<SDL_Window*>(nativeWindow), NULL);
-//	if (!m_Renderer) {
-//		return false;
-//	}
-//	return true;
-//}
-//
-//void SDLRenderer::Shutdown()
-//{
-//	if (m_Renderer) {
-//		SDL_DestroyRenderer(m_Renderer);
-//	}
-//}
-
 SDLRenderer::SDLRenderer(SDL_Window* nativeWindow) : m_Texture(nullptr)
 {
-	m_Renderer = SDL_CreateRenderer(static_cast<SDL_Window*>(nativeWindow), NULL);
+	if (!nativeWindow) {
+		throw std::invalid_argument("SDLRenderer requires a valid SDL_Window pointer");
+	}
+
+	Uint32 flags = SDL_GetWindowFlags(nativeWindow);
+	if (flags == 0) {
+		throw std::runtime_error("Provided window is not a valid SDL_Window");
+	}
+
+	m_Renderer = SDL_CreateRenderer(nativeWindow, NULL);
 	if (!m_Renderer) {
 		throw std::runtime_error("Failed to create SDL Renderer");
 	}
@@ -41,8 +34,13 @@ void SDLRenderer::DrawFrame(const IFrameBuffer& framebuffer)
 {
 	ensureTextureCreated(framebuffer.GetWidth(), framebuffer.GetHeight());
 	SDL_UpdateTexture(m_Texture, NULL, framebuffer.GetPixels(), framebuffer.GetWidth() * sizeof(uint32_t));
-	SDL_RenderTexture(m_Renderer, m_Texture, NULL, NULL);
+	//SDL_RenderTexture(m_Renderer, m_Texture, NULL, NULL);
 	SDL_RenderPresent(m_Renderer);
+}
+
+void* SDLRenderer::GetNativeRenderer()
+{
+	return m_Renderer;
 }
 
 std::unique_ptr<ITexture> SDLRenderer::CreateTexture(int width, int height, TextureScaleMode textureMode)
@@ -64,7 +62,7 @@ void SDLRenderer::ensureTextureCreated(int width, int heigth)
 		}
 	}
 
-	delete m_Texture;
+	SDL_DestroyTexture(m_Texture);
 	m_Texture = SDL_CreateTexture(m_Renderer, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_STREAMING, width, heigth);
 	SDL_SetTextureScaleMode(m_Texture, SDL_SCALEMODE_NEAREST);
 }
