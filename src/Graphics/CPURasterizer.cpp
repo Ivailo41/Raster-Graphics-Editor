@@ -7,56 +7,77 @@ void CPURasterizer::AttachFrameBuffer(IFrameBuffer* frameBuffer)
 	m_FrameBuffer = frameBuffer;
 }
 
-void CPURasterizer::DrawLineBresenham(int x0, int y0, int x1, int y1, uint32_t color, float progress)
+void CPURasterizer::DrawLineBresenham(int x1, int y1, int x2, int y2, uint32_t color, float progress)
 {
-	int dx = abs(x1 - x0);
-	int dy = abs(y1 - y0);
-	int sx = (x0 < x1) ? 1 : -1;
-	int sy = (y0 < y1) ? 1 : -1;
-	int err = dx - dy;
-
-    int totalSteps = (dx > dy ? dx : dy) + 1;
-    int visibleSteps = (int)(totalSteps * progress);
-    if (visibleSteps < 1) return;
-
-    for (int i = 0; i < visibleSteps; i++) {
-		m_FrameBuffer->SetPixel(x0, y0, color);
-		if (x0 == x1 && y0 == y1) break;
-		int err2 = err * 2;
-		if (err2 > -dy) {
-			err -= dy;
-			x0 += sx;
-		}
-		if (err2 < dx) {
-			err += dx;
-			y0 += sy;
-		}
-	}
-}
-
-void CPURasterizer::DrawLineSimple(int x0, int x1, int y0, int y1, uint32_t color, float progress)
-{
-    int dx = abs(y0 - x0);
-    int dy = abs(y1 - x1);
-    bool reverse = dx < dy;
+    int dx = abs(x2 - x1);
+    int dy = abs(y2 - y1);
+    bool reverse = dx < dy; // is the line in second octant?
 
     if (reverse) {
-        std::swap(x0, x1);
-        std::swap(y0, y1);
+        std::swap(x1, y1);
+        std::swap(x2, y2);
         std::swap(dx, dy);
     }
 
-    int incX = (x0 <= y0) ? 1 : -1;
-    float incY = static_cast<float>(y1 - x1) / dx;
-    float y = static_cast<float>(x1);
+	int incX = (x1 <= x2) ? 1 : -1; // handle Oy simmetry
+	int incY = (y1 <= y2) ? 1 : -1; // handle Ox simmetry
 
-    int x = x0;
+    int d = -dx + 2 * dy;
+	int incUP = -2 * dx + 2 * dy; // Chosing upper pixel
+	int incDN = 2 * dy; // Chosing down pixel
+
+    int x = x1;
+    int y = y1;
+
+    int totalSteps = (dx > dy ? dx : dy) + 1;
+
+    int visibleSteps = (int)(totalSteps * progress);
+    if (visibleSteps < 1) {
+        return;
+    }
+
+    for (int i = 0; i < visibleSteps; i++) {
+        if (reverse) {
+            m_FrameBuffer->SetPixel(y, x, color);
+        }
+        else {
+            m_FrameBuffer->SetPixel(x, y, color);
+        }
+
+        x += incX;
+        if (d > 0) {
+            d += incUP;
+            y += incY;
+        }
+        else {
+            d += incDN;
+        }
+    }
+}
+
+void CPURasterizer::DrawLineSimple(int x1, int y1, int x2, int y2, uint32_t color, float progress)
+{
+    int dx = abs(x2 - x1);
+    int dy = abs(y2 - y1);
+	bool reverse = dx < dy; // is the line in second octant?
+
+    if (reverse) {
+        std::swap(x1, y1);
+        std::swap(x2, y2);
+        std::swap(dx, dy);
+    }
+
+	int incX = (x1 <= x2) ? 1 : -1; // handle Oy simmetry
+	float incY = (float)(y2 - y1) / dx; // handle Ox simmetry
+    float y = (float)y1;
+
+    int x = x1;
     int n = dx + 1;
 
     int visibleSteps = (int)(n * progress);
 
     while (visibleSteps--) {
-        int inty = static_cast<int>(y + 0.5f);
+		int inty = static_cast<int>(y + 0.5f); // round to nearest integer
         if (reverse) {
             m_FrameBuffer->SetPixel(inty, x, color);
         }
