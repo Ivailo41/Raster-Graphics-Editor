@@ -4,6 +4,7 @@ This project is a simple `raster graphics editor` developed for my university co
 # Features
 - Abstracted rendering pipeline designed for multiple backends, currently implemented with SDL
 - Input handling
+- Graphic User Interface
 - Drawing lines with Bresenham's algorithm and with the rounded algorithm
 
 # Build and how to run the project
@@ -17,9 +18,10 @@ The project uses CMake for build system, I prefer using Visual Studio to deal wi
 
 # Libraries
 - SDL - window creation and renderer
+- ImGui - UI
 
 # Gallery
-Colored lines are the ones added from the code drawn with both methods, <br >
+Colored lines are the ones added from the code drawn with both methods, (red overlaping blue) <br >
 white lines are drawn in runtime from mouse input using Bresenham's method.
-<img width="801" height="631" alt="RGE_Demo2" src="https://github.com/user-attachments/assets/a3da42e9-533b-410e-9e5f-d75e3e4a65fd" /> <br >
-120x120 pixels grid
+<img width="1266" height="742" alt="RGE" src="https://github.com/user-attachments/assets/864aa0c0-9609-411c-9237-a16a0e370632" />
+120x120 pixels grid (some stretching is present, to be fixed)
