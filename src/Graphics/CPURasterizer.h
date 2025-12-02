@@ -10,6 +10,12 @@ public:
 
 	virtual void DrawLineBresenham(int x0, int y0, int x1, int y1, uint32_t color, float progress) override;
 	virtual void DrawLineSimple(int x0, int y0, int x1, int y1, uint32_t color, float progress) override;
+	virtual void DrawCircleMidPoint(int x0, int y0, int radius, uint32_t color, float progress, bool bold) override;
+
+private:
+	inline void ThickenPixel(int x, int y, uint32_t color, bool inverted);
+	inline void EightSymmetric(int xc, int yc, int x, int y, uint32_t color, bool bold);
+	inline void FourSymmetric(int xc, int yc, int x, int y, uint32_t color, bool bold, bool inverted);
 
 private:
 	IFrameBuffer* m_FrameBuffer;

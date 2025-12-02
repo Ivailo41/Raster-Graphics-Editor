@@ -13,6 +13,7 @@
 #include "UI/UIManager.h"
 
 #include "Graphics/Shapes/Line.h"
+#include "Graphics/Shapes/Circle.h"
 
 #include <vector>
 
@@ -36,6 +37,12 @@ void getClickedPixel(ImVec2 canvasSize, ImVec2 canvasOffset, IWindow* window, in
 	double pixelH = (double)canvasSize.y / pixelHeight;
 	outX = (mouseX - canvasOffset.x) / pixelW;
 	outY = (mouseY - canvasOffset.y) / pixelH;
+}
+
+unsigned calcDistance(int x0, int y0, int x1, int y1) {
+	int dx = abs(x1 - x0);
+	int dy = abs(y1 - y0);
+	return 0.9412f * std::max(dx, dy) + 0.4142f * std::min(dx, dy);
 }
 
 int main() {
@@ -98,8 +105,10 @@ int main() {
 	unsigned line1Start[2] = { 10, 20 };
 	unsigned line1End[2] = { 110, 70 };
 
-	unsigned line2Start[2] = { 10, 20 };
-	unsigned line2End[2] = { 110, 70 };
+	unsigned circleCenter[2] = { 60, 60 };
+	unsigned circleRadius = 30;
+
+	bool bold = false;
 
 	long long stressTestResult = 0;
 
@@ -123,8 +132,10 @@ int main() {
 		frameBuffer.Clear(0xFF000000); // Clear to black
 		renderer->Clear();
 		
-		rasterizer->DrawLineBresenham(line1Start[0], line1Start[1], line1End[0], line1End[1], 0x0000FFFF, progress);
-		rasterizer->DrawLineSimple(line1Start[0], line1Start[1], line1End[0], line1End[1], 0xFF0000FF, progress);
+		//rasterizer->DrawLineBresenham(line1Start[0], line1Start[1], line1End[0], line1End[1], 0x0000FFFF, progress);
+		//rasterizer->DrawLineSimple(line1Start[0], line1Start[1], line1End[0], line1End[1], 0xFF0000FF, progress);
+
+		rasterizer->DrawCircleMidPoint(circleCenter[0], circleCenter[1], circleRadius, 0x00FF00FF, progress, bold);
 
 		if(inputSystem.IsMouseButtonDown(MouseButton::RIGHT)) {
 
@@ -140,14 +151,15 @@ int main() {
 
 			getClickedPixel(canvasSize, canvasOffset, window.get(), PIXEL_WIDTH, PIXEL_HEIGHT, horizontalTileIndex, verticalTileIndex);
 
-			rasterizer->DrawLineBresenham(x0, y0, horizontalTileIndex, verticalTileIndex, 0xFFFFFFFF, 1.0);
+			rasterizer->DrawCircleMidPoint(x0, y0, calcDistance(x0,y0,horizontalTileIndex,verticalTileIndex), 0xFF00FFFF, 1, bold);
 		}
 
 		if (mouseDown && !inputSystem.IsMouseButtonDown(MouseButton::RIGHT)) {
 
 			getClickedPixel(canvasSize, canvasOffset, window.get(), PIXEL_WIDTH, PIXEL_HEIGHT, x1, y1);
 
-			shapes.push_back(new Line(x0, y0, x1, y1, true, 0xFFFFFFFF));
+			//shapes.push_back(new Line(x0, y0, x1, y1, true, 0xFFFFFFFF));
+			shapes.push_back(new Circle(x0, y0, calcDistance(x0, y0, x1, y1), 0xFF00FFFF, bold));
 
 			mouseDown = false;
 		}
@@ -174,8 +186,9 @@ int main() {
 		ImGui::SliderFloat("Progress", &progress, 0.0f, 1.0f);
 		ImGui::SliderInt2("Line1 Start", (int*)line1Start, 0, PIXEL_WIDTH);
 		ImGui::SliderInt2("Line1 End", (int*)line1End, 0, PIXEL_WIDTH);
-		ImGui::SliderInt2("Line2 Start", (int*)line2Start, 0, PIXEL_WIDTH);
-		ImGui::SliderInt2("Line2 End", (int*)line2End, 0, PIXEL_WIDTH);
+		ImGui::SliderInt2("Circle center", (int*)circleCenter, 0, PIXEL_WIDTH);
+		ImGui::SliderInt("Circle Radius", (int*)&circleRadius, 0, PIXEL_WIDTH);
+		ImGui::Checkbox("Bold Circle", &bold);
 		if (ImGui::Button("Test 100k lines draw")) {
 
 			std::random_device rd; // obtain a random number from hardware

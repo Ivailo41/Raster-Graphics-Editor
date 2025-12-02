@@ -89,3 +89,63 @@ void CPURasterizer::DrawLineSimple(int x1, int y1, int x2, int y2, uint32_t colo
         y += incY;
     }
 }
+
+void CPURasterizer::DrawCircleMidPoint(int x0, int y0, int radius, uint32_t color, float progress, bool bold)
+{
+    int x = 0;
+    int y = radius;
+    int d = 3 - 2 * radius;
+
+    int steps = (int)(y * progress);
+
+    EightSymmetric(x0, y0, 0, radius, color, bold);
+
+    while (x < steps)
+    {
+        if (d >= 0)
+        {
+            d += 10 + 4 * x - 4 * y;
+            y--;
+            steps--;
+        }
+        else
+        {
+            d += 6 + 4 * x;
+        }
+        x++;
+
+        EightSymmetric(x0, y0, x, y, color, bold);
+    }
+}
+
+inline void CPURasterizer::ThickenPixel(int x, int y, uint32_t color, bool inverted)
+{
+    if (inverted) {
+		m_FrameBuffer->SetPixel(x + 1, y, color);
+		m_FrameBuffer->SetPixel(x - 1, y, color);
+        return;
+    }
+
+	m_FrameBuffer->SetPixel(x, y + 1, color);
+	m_FrameBuffer->SetPixel(x, y - 1, color);
+}
+
+inline void CPURasterizer::EightSymmetric(int x0, int y0, int x, int y, uint32_t color, bool bold)
+{
+	FourSymmetric(x0, y0, x, y, color, bold, false);
+	FourSymmetric(x0, y0, y, x, color, bold, true);
+}
+
+inline void CPURasterizer::FourSymmetric(int x0, int y0, int x, int y, uint32_t color, bool bold, bool inverted)
+{
+    if (bold) {
+		ThickenPixel(x0 + x, y0 + y, 0xFFFFFFFF, inverted);
+		ThickenPixel(x0 - x, y0 - y, 0xFFFFFFFF, inverted);
+		ThickenPixel(x0 - x, y0 + y, 0xFFFFFFFF, inverted);
+		ThickenPixel(x0 + x, y0 - y, 0xFFFFFFFF, inverted);
+    }
+    m_FrameBuffer->SetPixel(x0 + x, y0 + y, color);
+    m_FrameBuffer->SetPixel(x0 - x, y0 - y, color);
+    m_FrameBuffer->SetPixel(x0 - x, y0 + y, color);
+    m_FrameBuffer->SetPixel(x0 + x, y0 - y, color);
+}
