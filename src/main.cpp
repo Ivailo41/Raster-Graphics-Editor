@@ -14,6 +14,7 @@
 
 #include "Graphics/Shapes/Line.h"
 #include "Graphics/Shapes/Circle.h"
+#include "Graphics/Shapes/Polygon.h"
 
 #include <vector>
 
@@ -21,10 +22,8 @@
 #include "imgui_impl_sdl3.h"
 #include "imgui_impl_sdlrenderer3.h"
 
-#include <chrono>
 #include <random>
 #include <math.h>
-using namespace std::chrono;
 
 void getClickedPixel(ImVec2 canvasSize, ImVec2 canvasOffset, IWindow* window, int pixelWidth, int pixelHeight, unsigned& outX, unsigned& outY) {
 
@@ -110,11 +109,12 @@ int main() {
 
 	bool bold = false;
 
-	long long stressTestResult = 0;
-
 	SDL_Texture* myTexture;
 	
 	ImVec2 canvasSize, canvasOffset;
+
+	std::vector<point2d> polygonPoints;
+	std::vector<point2d> polygonFills;
 
 	// Main loop
 	while (!platform->shouldClose()) {
@@ -131,17 +131,28 @@ int main() {
 
 		frameBuffer.Clear(0xFF000000); // Clear to black
 		renderer->Clear();
-		
-		//rasterizer->DrawLineBresenham(line1Start[0], line1Start[1], line1End[0], line1End[1], 0x0000FFFF, progress);
-		//rasterizer->DrawLineSimple(line1Start[0], line1Start[1], line1End[0], line1End[1], 0xFF0000FF, progress);
 
-		rasterizer->DrawCircleMidPoint(circleCenter[0], circleCenter[1], circleRadius, 0x00FF00FF, progress, bold);
+		//For each shape rasterize shape to framebuffer
+		for (const Shape* shape : shapes) {
+			shape->Draw(rasterizer);
+		}
+
+		for (size_t i = 0; i < polygonPoints.size(); ++i) {
+			const point2d& p1 = polygonPoints[i];
+			const point2d& p2 = polygonPoints[(i + 1) % polygonPoints.size()]; // Wrap around to the first point
+			rasterizer->DrawLineBresenham(p1.x, p1.y, p2.x, p2.y, 0x00FF00FF, 1.0f);
+		}
+
+		for (const point2d& fillPoint : polygonFills) {
+			rasterizer->SimpleBoundaryFill(fillPoint.x, fillPoint.y, 0x0000FFFF, 0x00FF00FF, progress, 0);
+		}
 
 		if(inputSystem.IsMouseButtonDown(MouseButton::RIGHT)) {
 
 
 			if (!mouseDown) {
 				getClickedPixel(canvasSize, canvasOffset, window.get(), PIXEL_WIDTH, PIXEL_HEIGHT, x0, y0);
+				polygonPoints.push_back({ (int)x0, (int)y0 });
 			}
 
 			mouseDown = true;
@@ -150,27 +161,32 @@ int main() {
 			unsigned verticalTileIndex;
 
 			getClickedPixel(canvasSize, canvasOffset, window.get(), PIXEL_WIDTH, PIXEL_HEIGHT, horizontalTileIndex, verticalTileIndex);
-
-			rasterizer->DrawCircleMidPoint(x0, y0, calcDistance(x0,y0,horizontalTileIndex,verticalTileIndex), 0xFF00FFFF, 1, bold);
 		}
 
 		if (mouseDown && !inputSystem.IsMouseButtonDown(MouseButton::RIGHT)) {
 
 			getClickedPixel(canvasSize, canvasOffset, window.get(), PIXEL_WIDTH, PIXEL_HEIGHT, x1, y1);
 
-			//shapes.push_back(new Line(x0, y0, x1, y1, true, 0xFFFFFFFF));
-			shapes.push_back(new Circle(x0, y0, calcDistance(x0, y0, x1, y1), 0xFF00FFFF, bold));
+			mouseDown = false;
+		}
+
+		if (inputSystem.IsMouseButtonDown(MouseButton::MIDDLE)) {
+
+			if (!mouseDown) {
+				getClickedPixel(canvasSize, canvasOffset, window.get(), PIXEL_WIDTH, PIXEL_HEIGHT, x0, y0);
+				polygonFills.push_back({ (int)x0, (int)y0 });
+			}
+
+			mouseDown = true;
+		}
+
+		if (mouseDown && !inputSystem.IsMouseButtonDown(MouseButton::MIDDLE)) {
 
 			mouseDown = false;
 		}
 
 		if(inputSystem.IsKeyDown(KeyCode::KeyCode_E)) {
 			shapes.clear();
-		}
-
-		//For each shape rasterize shape to framebuffer
-		for (const Shape* shape : shapes) {
-			shape->Draw(rasterizer);
 		}
 
 		uiLayer->BeginFrame();
@@ -189,22 +205,9 @@ int main() {
 		ImGui::SliderInt2("Circle center", (int*)circleCenter, 0, PIXEL_WIDTH);
 		ImGui::SliderInt("Circle Radius", (int*)&circleRadius, 0, PIXEL_WIDTH);
 		ImGui::Checkbox("Bold Circle", &bold);
-		if (ImGui::Button("Test 100k lines draw")) {
-
-			std::random_device rd; // obtain a random number from hardware
-			std::mt19937 gen(rd()); // seed the generator
-			std::uniform_int_distribution<> distr(0, std::max(PIXEL_WIDTH, PIXEL_HEIGHT)); // define the range
-
-			auto start = high_resolution_clock::now();
-			for (size_t i = 0; i < 100000; i++)
-			{
-				rasterizer->DrawLineBresenham(distr(gen), distr(gen), distr(gen), distr(gen), 0xFFFFFFFF, 1.0);
-			}
-			auto stop = high_resolution_clock::now();
-			auto duration = duration_cast<milliseconds>(stop - start);
-			stressTestResult = duration.count();
+		if (ImGui::Button("Reset polygon fill")) {
+			polygonFills.clear();
 		}
-		ImGui::Text("Calculation 100k Lines duration: %i ms", stressTestResult);
 		ImGui::End();
 
 		ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0, 0));

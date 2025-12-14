@@ -118,6 +118,20 @@ void CPURasterizer::DrawCircleMidPoint(int x0, int y0, int radius, uint32_t colo
     }
 }
 
+void CPURasterizer::SimpleBoundaryFill(int x, int y, uint32_t fillColor, uint32_t borderColor, float progress, int step)
+{
+
+    uint32_t currentColor = m_FrameBuffer->GetPixel(x, y);
+    if (currentColor != borderColor && currentColor != fillColor && step++ < (int)(5000 * progress))
+    {
+        m_FrameBuffer->SetPixel(x, y, fillColor);
+        SimpleBoundaryFill(x + 1, y, fillColor, borderColor, progress, step);
+        SimpleBoundaryFill(x - 1, y, fillColor, borderColor, progress, step);
+        SimpleBoundaryFill(x, y + 1, fillColor, borderColor, progress, step);
+        SimpleBoundaryFill(x, y - 1, fillColor, borderColor, progress, step);
+	}
+}
+
 inline void CPURasterizer::ThickenPixel(int x, int y, uint32_t color, bool inverted)
 {
     if (inverted) {

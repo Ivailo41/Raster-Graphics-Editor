@@ -1,6 +1,11 @@
 #pragma once
 #include "../IRasterizer.h"
 
+struct point2d {
+	int x;
+	int y;
+};
+
 class Shape {
 public:
 	virtual ~Shape() = default;

@@ -23,6 +23,9 @@ void FrameBuffer::SetPixel(int x, int y, uint32_t color)
 
 uint32_t FrameBuffer::GetPixel(int x, int y) const
 {
+	if (x < 0 || x >= m_Width || y < 0 || y >= m_Height) {
+		return 0;
+	}
 	return m_Pixels[y * m_Width + x];
 }
 
