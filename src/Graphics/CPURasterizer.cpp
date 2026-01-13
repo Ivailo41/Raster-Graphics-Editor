@@ -132,6 +132,42 @@ void CPURasterizer::SimpleBoundaryFill(int x, int y, uint32_t fillColor, uint32_
 	}
 }
 
+void CPURasterizer::DrawRectangle(int x0, int y0, int x1, int y1, uint32_t color, float progress)
+{
+	if (y0 > y1) {
+		std::swap(y0, y1);
+	}
+	if (x0 > x1) {
+		std::swap(x0, x1);
+	}
+
+	int width = abs(x1 - x0);
+	int height = abs(y1 - y0);
+
+	int visibleWidth = (int)(width * progress);
+	int visibleHeight = (int)(height * progress);
+
+	// Top edge
+	for (int x = x0; x < x0 + visibleWidth + 1; x++) {
+		m_FrameBuffer->SetPixel(x, y0, color);
+	}
+
+	// Bottom edge
+	for (int x = x0; x < x0 + visibleWidth + 1; x++) {
+		m_FrameBuffer->SetPixel(x, y0 + height, color);
+	}
+
+	// Left edge
+	for (int y = y0; y < y0 + visibleHeight; y++) {
+		m_FrameBuffer->SetPixel(x0, y, color);
+	}
+
+	// Right edge
+	for (int y = y0; y < y0 + visibleHeight; y++) {
+		m_FrameBuffer->SetPixel(x0 + width, y, color);
+	}   
+}
+
 inline void CPURasterizer::ThickenPixel(int x, int y, uint32_t color, bool inverted)
 {
     if (inverted) {

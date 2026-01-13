@@ -10,8 +10,10 @@ public:
 
 	virtual void DrawLineBresenham(int x0, int y0, int x1, int y1, uint32_t color, float progress) override;
 	virtual void DrawLineSimple(int x0, int y0, int x1, int y1, uint32_t color, float progress) override;
+
 	virtual void DrawCircleMidPoint(int x0, int y0, int radius, uint32_t color, float progress, bool bold) override;
 	virtual void SimpleBoundaryFill(int x, int y, uint32_t fillColor, uint32_t borderColor, float progress, int step) override;
+	virtual void DrawRectangle(int x0, int y0, int x1, int y1, uint32_t color, float progress) override;
 
 private:
 	inline void ThickenPixel(int x, int y, uint32_t color, bool inverted);

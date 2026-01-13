@@ -15,6 +15,7 @@
 #include "Graphics/Shapes/Line.h"
 #include "Graphics/Shapes/Circle.h"
 #include "Graphics/Shapes/Polygon.h"
+#include "Graphics/Shapes/Rectangle.h"
 
 #include <vector>
 
@@ -42,6 +43,57 @@ unsigned calcDistance(int x0, int y0, int x1, int y1) {
 	int dx = abs(x1 - x0);
 	int dy = abs(y1 - y0);
 	return 0.9412f * std::max(dx, dy) + 0.4142f * std::min(dx, dy);
+}
+
+int LiangBarsky2DClip(unsigned& x0, unsigned& y0, unsigned& x1, unsigned& y1, unsigned xmin, unsigned ymin, unsigned xmax, unsigned ymax) {
+	if (xmin >= xmax || ymin >= ymax)
+		return 0;
+
+	float fx0 = static_cast<float>(x0);
+	float fy0 = static_cast<float>(y0);
+	float fx1 = static_cast<float>(x1);
+	float fy1 = static_cast<float>(y1);
+
+	float dx = fx1 - fx0;
+	float dy = fy1 - fy0;
+
+	float p[4] = { -dx, dx, -dy, dy };
+	float q[4] = { fx0 - xmin, xmax - fx0, fy0 - ymin, ymax - fy0 };
+
+	float u1 = 0.0f, u2 = 1.0f;
+
+	for (int i = 0; i < 4; ++i) {
+		if (fabs(p[i]) < 1e-6f) {
+			if (q[i] < 0.0f)
+				return 0;
+		}
+		else {
+			float r = q[i] / p[i];
+			if (p[i] < 0.0f) {
+				if (r > u2) return 0;
+				if (r > u1) u1 = r;
+			}
+			else {
+				if (r < u1) return 0;
+				if (r < u2) u2 = r;
+			}
+		}
+	}
+
+	if (u1 > u2)
+		return 0;
+
+	float nx0 = fx0 + u1 * dx;
+	float ny0 = fy0 + u1 * dy;
+	float nx1 = fx0 + u2 * dx;
+	float ny1 = fy0 + u2 * dy;
+
+	x0 = static_cast<unsigned>(std::round(nx0));
+	y0 = static_cast<unsigned>(std::round(ny0));
+	x1 = static_cast<unsigned>(std::round(nx1));
+	y1 = static_cast<unsigned>(std::round(ny1));
+
+	return 1;
 }
 
 int main() {
@@ -91,7 +143,14 @@ int main() {
 	FrameBuffer frameBuffer(PIXEL_WIDTH, PIXEL_HEIGHT);
 	IRasterizer* rasterizer = new CPURasterizer(&frameBuffer);
 
+	Rectangle* rect = new Rectangle(10, 10, 50, 50, 0xFFFFFFFF);
+	Line* line = new Line(60, 60, 100, 100, 0, 0xFF0000FF);
+
 	std::vector<Shape*> shapes;
+
+	shapes.push_back(rect);
+	shapes.push_back(line);
+
 	shapes.reserve(100);
 
 	//temporary variable to check on mouse up event
@@ -100,14 +159,20 @@ int main() {
 	//temporary variables to store the preview line start and end points
 	unsigned int x0, x1, y0, y1;
 
+	bool drawClippedLine = false;
+
 	float progress = 1.0f;
+	float progress2 = 1.0f;
 	unsigned line1Start[2] = { 10, 20 };
 	unsigned line1End[2] = { 110, 70 };
 
-	unsigned circleCenter[2] = { 60, 60 };
-	unsigned circleRadius = 30;
+	unsigned rectangleStart[2] = { 0, 0 };
+	unsigned rectangleEnd[2] = { 0, 0 };
 
-	bool bold = false;
+	unsigned clippedLineStart[2] = { 0, 0 };
+	unsigned clippedLineEnd[2] = { 0, 0 };
+
+	unsigned int reactangleX, rectangleY, rectangleWidth, rectangleHeight;
 
 	SDL_Texture* myTexture;
 	
@@ -151,8 +216,9 @@ int main() {
 
 
 			if (!mouseDown) {
-				getClickedPixel(canvasSize, canvasOffset, window.get(), PIXEL_WIDTH, PIXEL_HEIGHT, x0, y0);
-				polygonPoints.push_back({ (int)x0, (int)y0 });
+				getClickedPixel(canvasSize, canvasOffset, window.get(), PIXEL_WIDTH, PIXEL_HEIGHT, reactangleX, rectangleY);
+				//polygonPoints.push_back({ (int)x0, (int)y0 });
+				std::cout << "Rectangle Start X: " << reactangleX << " Y: " << rectangleY << std::endl;
 			}
 
 			mouseDown = true;
@@ -161,6 +227,8 @@ int main() {
 			unsigned verticalTileIndex;
 
 			getClickedPixel(canvasSize, canvasOffset, window.get(), PIXEL_WIDTH, PIXEL_HEIGHT, horizontalTileIndex, verticalTileIndex);
+
+			rasterizer->DrawRectangle(reactangleX, rectangleY, horizontalTileIndex, verticalTileIndex, 0xFFFFFFFF, progress2);
 		}
 
 		if (mouseDown && !inputSystem.IsMouseButtonDown(MouseButton::RIGHT)) {
@@ -169,20 +237,9 @@ int main() {
 
 			mouseDown = false;
 		}
-
-		if (inputSystem.IsMouseButtonDown(MouseButton::MIDDLE)) {
-
-			if (!mouseDown) {
-				getClickedPixel(canvasSize, canvasOffset, window.get(), PIXEL_WIDTH, PIXEL_HEIGHT, x0, y0);
-				polygonFills.push_back({ (int)x0, (int)y0 });
-			}
-
-			mouseDown = true;
-		}
-
-		if (mouseDown && !inputSystem.IsMouseButtonDown(MouseButton::MIDDLE)) {
-
-			mouseDown = false;
+		
+		if (drawClippedLine) {
+			rasterizer->DrawLineSimple(clippedLineStart[0], clippedLineStart[1], clippedLineEnd[0], clippedLineEnd[1], 0x0000FFFF, progress2);
 		}
 
 		if(inputSystem.IsKeyDown(KeyCode::KeyCode_E)) {
@@ -199,12 +256,52 @@ int main() {
 			PIXEL_HEIGHT = res[1];
 			frameBuffer.SetSize(PIXEL_WIDTH, PIXEL_HEIGHT);
 		}
-		ImGui::SliderFloat("Progress", &progress, 0.0f, 1.0f);
-		ImGui::SliderInt2("Line1 Start", (int*)line1Start, 0, PIXEL_WIDTH);
-		ImGui::SliderInt2("Line1 End", (int*)line1End, 0, PIXEL_WIDTH);
-		ImGui::SliderInt2("Circle center", (int*)circleCenter, 0, PIXEL_WIDTH);
-		ImGui::SliderInt("Circle Radius", (int*)&circleRadius, 0, PIXEL_WIDTH);
-		ImGui::Checkbox("Bold Circle", &bold);
+		if (ImGui::SliderFloat("Progress - Line", &progress, 0.0f, 1.0f)) {
+			line->setProgress(progress);
+		}
+		if (ImGui::SliderFloat("Progress - Clipped Line", &progress2, 0.0f, 1.0f)) {
+			
+		}
+		if (ImGui::SliderInt2("Line1 Start", (int*)line1Start, 0, PIXEL_WIDTH)) {
+			line->SetStart(line1Start[0], line1Start[1]);
+
+			clippedLineStart[0] = line1Start[0];
+			clippedLineStart[1] = line1Start[1];
+			clippedLineEnd[0] = line1End[0];
+			clippedLineEnd[1] = line1End[1];
+
+			drawClippedLine = LiangBarsky2DClip(clippedLineStart[0], clippedLineStart[1], clippedLineEnd[0], clippedLineEnd[1], rect->getMinX(), rect->getMinY(), rect->getMaxX(), rect->getMaxY());
+		}
+		if (ImGui::SliderInt2("Line1 End", (int*)line1End, 0, PIXEL_WIDTH)) {
+			line->SetEnd(line1End[0], line1End[1]);
+
+			clippedLineStart[0] = line1Start[0];
+			clippedLineStart[1] = line1Start[1];
+			clippedLineEnd[0] = line1End[0];
+			clippedLineEnd[1] = line1End[1];
+
+			drawClippedLine = LiangBarsky2DClip(clippedLineStart[0], clippedLineStart[1], clippedLineEnd[0], clippedLineEnd[1], rect->getMinX(), rect->getMinY(), rect->getMaxX(), rect->getMaxY());
+		}
+		if (ImGui::SliderInt2("Rectangle Start", (int*)rectangleStart, 0, PIXEL_WIDTH)) {
+			rect->setStart(rectangleStart[0], rectangleStart[1]);
+
+			clippedLineStart[0] = line1Start[0];
+			clippedLineStart[1] = line1Start[1];
+			clippedLineEnd[0] = line1End[0];
+			clippedLineEnd[1] = line1End[1];
+
+			drawClippedLine = LiangBarsky2DClip(clippedLineStart[0], clippedLineStart[1], clippedLineEnd[0], clippedLineEnd[1], rect->getMinX(), rect->getMinY(), rect->getMaxX(), rect->getMaxY());
+		}
+		if (ImGui::SliderInt2("Rectangle End", (int*)rectangleEnd, 0, PIXEL_WIDTH)) {
+			rect->setEnd(rectangleEnd[0], rectangleEnd[1]);
+
+			clippedLineStart[0] = line1Start[0];
+			clippedLineStart[1] = line1Start[1];
+			clippedLineEnd[0] = line1End[0];
+			clippedLineEnd[1] = line1End[1];
+
+			drawClippedLine = LiangBarsky2DClip(clippedLineStart[0], clippedLineStart[1], clippedLineEnd[0], clippedLineEnd[1], rect->getMinX(), rect->getMinY(), rect->getMaxX(), rect->getMaxY());
+		}
 		if (ImGui::Button("Reset polygon fill")) {
 			polygonFills.clear();
 		}

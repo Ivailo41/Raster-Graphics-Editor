@@ -3,10 +3,10 @@
 void Line::Draw(IRasterizer* rasterizer) const
 {
 	if (m_Method) {
-		rasterizer->DrawLineBresenham(m_X1, m_Y1, m_X2, m_Y2, m_Color, 1.0);
+		rasterizer->DrawLineBresenham(m_X1, m_Y1, m_X2, m_Y2, m_Color, m_Progress);
 	}
 	else {
-		rasterizer->DrawLineSimple(m_X1, m_Y1, m_X2, m_Y2, m_Color, 1.0);
+		rasterizer->DrawLineSimple(m_X1, m_Y1, m_X2, m_Y2, m_Color, m_Progress);
 	}
 }
 
